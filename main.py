@@ -16,7 +16,7 @@ def main(experiment_path, GPU_limit):
     experiment_name = experiment_settings['experiment_name']
     time_tag = arrow.now().format('YYYYMMDDHHmm')
     summary_writer = get_summary_writer(experiment_name, time_tag)
-    model_save_path = get_model_save_path(experiment_name)
+    model_save_path = get_model_save_path(experiment_name) # model will be saved at save_models/{experiment_name}
 
     datasets = get_tensorflow_datasets(**experiment_settings['data'])
     model = create_model_instance(experiment_settings['model'])

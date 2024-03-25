@@ -36,10 +36,14 @@ def set_up_tensorflow(GPU_limit):
     tf.config.optimizer.set_experimental_options({'layout_optimizer': False})
 
 
+'''
+    get_summary_writer: 
+        recording the address of log file, return dictionary
+'''
 def get_summary_writer(experiment_name, time_tag):
     summary_writer = {}
     for phase in ['train', 'valid', 'test']:
-        log_path = f'logs/{experiment_name}/{time_tag}/{phase}'
+        log_path = f'logs/{experiment_name}/{time_tag}/{phase}' # set log files' address
         summary_writer[phase] = tf.summary.create_file_writer(log_path)
     return summary_writer
 

@@ -1,3 +1,7 @@
+'''
+    data preprocessing
+'''
+
 import tensorflow as tf
 from functools import partial
 import tensorflow_addons as tfa
@@ -10,7 +14,12 @@ def ascii_array_to_string(ascii_array):
         string += chr(ascii_code)
     return string
 
-
+'''
+    < Global Training Dataset Structure >
+    - Mainly call tf.io.parse_single_example to cope with the data.
+    - returns a dictionary (or similar data structure) containing the features extracted from the serialized example. 
+    - Each feature is represented as a TensorFlow tensor. (Similar to JSON)
+'''
 def deserialize(serialized_TC_history):
     features = {
         'history_len': tf.io.FixedLenFeature([], tf.int64),
@@ -24,7 +33,7 @@ def deserialize(serialized_TC_history):
     }
 
     example = tf.io.parse_single_example(serialized_TC_history, features)
-    history_len = tf.cast(example['history_len'], tf.int32)
+    history_len = tf.cast(example['history_len'], tf.int32) # suppose 'history_len' indicates time series.
 
     images = tf.reshape(
         tf.io.decode_raw(example['images'], tf.float32),
@@ -144,6 +153,12 @@ def image_preprocessing(images, intensity, lon, lat, env_feature, history_len, f
     return rotated_images, intensity, lon, lat, env_feature, history_len, frame_ID_ascii
 
 
+'''
+    get_tensorflow_datasets
+        process and transform serialized typhoon data stored in TFRecord files, 
+        generating TensorFlow datasets suitable for training or testing purposes.
+    Raw Dataset --> TFRecord file --> tf.data.TFRecordDataset
+'''
 def get_tensorflow_datasets(
     data_folder, batch_size, encode_length,
     estimate_distance, rotate_type,input_image_type
@@ -151,12 +166,18 @@ def get_tensorflow_datasets(
     tfrecord_paths = get_or_generate_tfrecord(data_folder)
     datasets = dict()
     for phase, record_path in tfrecord_paths.items():
+        '''
+            'tf.data.TFRecordDataset' is used in TensorFlow to create a dataset from one or more TFRecord files. 
+            TFRecord files are a binary format used to efficiently store large datasets. 
+            The TFRecordDataset class allows you to read data from TFRecord files and convert it into a TensorFlow dataset, 
+            which can then be used as input for training or evaluation of machine learning models.
+        '''
         serialized_TC_histories = tf.data.TFRecordDataset(
             [record_path], num_parallel_reads=8
         )
         TC_histories = serialized_TC_histories.map(
             deserialize, num_parallel_calls=tf.data.AUTOTUNE
-        )
+        ) # for each ele ['train','valid','test'] in serialized_TC_histories (map) call deserialize to process.
 
         min_history_len = encode_length + estimate_distance+2  #+2 for extra 6hr information
         long_enough_histories = TC_histories.filter(
