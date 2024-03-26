@@ -14,13 +14,15 @@ def ascii_array_to_string(ascii_array):
         string += chr(ascii_code)
     return string
 
-'''
-    < Global Training Dataset Structure >
-    - Mainly call tf.io.parse_single_example to cope with the data.
-    - returns a dictionary (or similar data structure) containing the features extracted from the serialized example. 
-    - Each feature is represented as a TensorFlow tensor. (Similar to JSON)
-'''
 def deserialize(serialized_TC_history):
+    '''
+    < Global Training Dataset Structure >
+        - Mainly call tf.io.parse_single_example to cope with the data.
+        - returns a dictionary (or similar data structure) containing the features extracted from the serialized example.
+        - Each feature is represented as a TensorFlow tensor. (Similar to JSON)
+    :param serialized_TC_history:
+    :return:
+    '''
     features = {
         'history_len': tf.io.FixedLenFeature([], tf.int64),
         'images': tf.io.FixedLenFeature([], tf.string),
@@ -98,6 +100,19 @@ def translation(starting_lon, starting_lat, ending_lon, ending_lat, estimate_dis
 def breakdown_into_sequence(
     images, intensity, lon, lat, env_feature, history_len, frame_ID_ascii, encode_length, estimate_distance
 ):
+    '''
+
+    :param images:
+    :param intensity:
+    :param lon:
+    :param lat:
+    :param env_feature:
+    :param history_len: represents the length of the historical sequence.
+    :param frame_ID_ascii:
+    :param encode_length:
+    :param estimate_distance: time step of prediction.
+    :return:
+    '''
     sequence_num = history_len - (encode_length + estimate_distance) + 1
     starting_index = tf.range(2, sequence_num)
 
@@ -138,31 +153,65 @@ def breakdown_into_sequence(
 
 
 def image_preprocessing(images, intensity, lon, lat, env_feature, history_len, frame_ID_ascii, SHTD, rotate_type, input_image_type):
-    images_channels = tf.gather(images, input_image_type, axis=-1)
+    '''
+    Operating at every typhoon record (in the format of time series).
+    func:
+        - Filtering colors. Only specific color (set at .yml files) will be left.
+        - Operating rotation.
+    :param images: [history_len, 64, 64, 4]
+    :param intensity:
+    :param lon:
+    :param lat:
+    :param env_feature:
+    :param history_len:
+    :param frame_ID_ascii:
+    :param SHTD:
+    :param rotate_type:      configure at ensXX.yml file, indicating the way of rotating operation.
+    :param input_image_type: configure at ensXX.yml file
+    :return:
+    '''
+    images_channels = tf.gather(images, input_image_type, axis=-1) # Only certain color channels are of interest, while others are ignored.
+    '''
+    tf.gather
+        tf.gather: This is a TensorFlow function used for gathering slices from a tensor 
+                    along a specified axis according to indices provided.
+        '-1': the last axis of the images tensor.
+        return: Tensor.
+    '''
     if rotate_type == 'single':
         angles = tf.random.uniform([history_len], maxval=360)
         rotated_images = tfa.image.rotate(images_channels, angles=angles)
+        # A series of random angles is generated, and images_channels is rotated using these angles.
     elif rotate_type == 'series':
         angles = tf.ones([history_len]) * tf.random.uniform([1], maxval=360)
         rotated_images = tfa.image.rotate(images_channels, angles=angles)
+        # A single random angle is generated and applied to all images.
     elif rotate_type == 'shear':
         print('this is the shear rotation run')
-        rotated_images = tfa.image.rotate(images_channels, angles=-SHTD*0.01745329252)    
+        rotated_images = tfa.image.rotate(images_channels, angles=-SHTD*0.01745329252)
+        # a shear rotation is applied. The images_channels is rotated using the shear angle specified.
     else:
-        rotated_images = images_channels
+        rotated_images = images_channels # without any rotation.
     return rotated_images, intensity, lon, lat, env_feature, history_len, frame_ID_ascii
 
 
-'''
-    get_tensorflow_datasets
-        process and transform serialized typhoon data stored in TFRecord files, 
-        generating TensorFlow datasets suitable for training or testing purposes.
-    Raw Dataset --> TFRecord file --> tf.data.TFRecordDataset
-'''
 def get_tensorflow_datasets(
     data_folder, batch_size, encode_length,
     estimate_distance, rotate_type,input_image_type
 ):
+    '''
+    get_tensorflow_datasets
+        process and transform serialized typhoon data stored in TFRecord files,
+        generating TensorFlow datasets suitable for training or testing purposes.
+        Raw Dataset --> TFRecord file --> tf.data.TFRecordDataset
+    :param data_folder:
+    :param batch_size:
+    :param encode_length:
+    :param estimate_distance: time step of prediction.
+    :param rotate_type:
+    :param input_image_type:
+    :return:
+    '''
     tfrecord_paths = get_or_generate_tfrecord(data_folder)
     datasets = dict()
     for phase, record_path in tfrecord_paths.items():
@@ -182,8 +231,9 @@ def get_tensorflow_datasets(
         min_history_len = encode_length + estimate_distance+2  #+2 for extra 6hr information
         long_enough_histories = TC_histories.filter(
             lambda a, b, c, d, e, f, g, h: f >= min_history_len
-        )
+        ) # filter
 
+        # image pre-process
         preprocessed_histories = long_enough_histories.map(
             partial(
                 image_preprocessing,
