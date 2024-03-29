@@ -109,12 +109,12 @@ def breakdown_into_sequence(
     :param env_feature:
     :param history_len: represents the length of the historical sequence.
     :param frame_ID_ascii:
-    :param encode_length:
+    :param encode_length: previous time step used for prediction.
     :param estimate_distance: time step of prediction.
     :return:
     '''
     sequence_num = history_len - (encode_length + estimate_distance) + 1
-    starting_index = tf.range(2, sequence_num)
+    starting_index = tf.range(2, sequence_num) # tensor: [2, sequence_num-1]
 
     image_sequences = tf.map_fn(
         lambda start: images[start: start+encode_length],

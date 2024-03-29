@@ -19,10 +19,14 @@ def train(
     avg_losses = defaultdict(lambda: tf.keras.metrics.Mean(dtype=tf.float32))
     class_weight, norm = tf.linalg.normalize(tf.cast(class_weight, tf.float32), ord=1)
 
+    '''
+      Operating one training step, calculate and update loss value.
+
+    '''
     @tf.function
     def train_step(model, image_sequences, labels, feature, dV):
-        with tf.GradientTape() as tape:
-            model_output = model(image_sequences, feature, training=True)
+        with tf.GradientTape() as tape: # Creates a context manager GradientTape used for computing gradients.
+            model_output = model(image_sequences, feature, training=True) # iterate training.
         
             sample_weight = tf.math.tanh((dV-20)/10)*1000 +1000.1            
             sample_weight = tf.expand_dims(sample_weight, axis = 1)
@@ -36,7 +40,7 @@ def train(
 
     best_MAE = np.inf
     best_MSE = np.inf
-    for epoch_index in range(1, max_epoch+1):
+    for epoch_index in range(1, max_epoch+1): # max_epoch: max training iteration.
         print(f'Executing epoch #{epoch_index}')
 
         for image_sequences, labels, feature, frame_ID_ascii, dV  in datasets['train']:
