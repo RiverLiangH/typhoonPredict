@@ -175,12 +175,13 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
 
 
 def generate_tfrecord(data_folder):
-    file_path = Path(data_folder, 'TCSA_GAN.h5')
+    file_path = Path(data_folder, 'TCSA.h5')
     if not file_path.exists():
         print(f'file {file_path} not found! try to download it!')
         download_data(data_folder)
     with h5py.File(file_path, 'r') as hf:
-        image_matrix = hf['matrix'][:]
+        print("文件中的对象列表:", list(hf.keys()))
+        image_matrix = hf['images'][:]
     # collect info from every file in the list
     info_df = pd.read_hdf(file_path, key='info', mode='r')
     image_matrix, info_df = data_cleaning_and_organizing(image_matrix, info_df)
