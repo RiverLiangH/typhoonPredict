@@ -10,16 +10,30 @@ from datetime import timedelta
 pd.options.mode.chained_assignment = None
 
 def remove_outlier_and_nan(numpy_array, upper_bound=1000):
+    '''
+        Preprocess a NumPy array by removing outliers and NaN (Not a Number) values.
+        :param numpy_array:
+        :param upper_bound:
+        :return:
+    '''
     numpy_array = np.nan_to_num(numpy_array, copy=False)
     numpy_array[numpy_array > upper_bound] = 0
     VIS = numpy_array[:, :, :, 2]
     VIS[VIS > 1] = 1  # VIS channel ranged from 0 to 1
     return numpy_array
 
+
 def remove_no_ships(image_matrix, info_df):
-    noships = np.argwhere(np.isnan(list(info_df.U200)))
-    image_matrix  = np.delete(image_matrix, noships, axis=0)
-    info_df = info_df.dropna(subset = ['U200']).reset_index(drop=True)
+    '''
+    Remove tfrecord without SHIP 'U200'.
+    :param image_matrix:
+    :param info_df:
+    :return:
+    '''
+    noships_index = info_df.index[info_df['U200'].isnull()]
+    image_matrix = np.delete(image_matrix, noships_index, axis=0)
+    info_df = info_df.dropna(subset=['U200']).reset_index(drop=True)
+
     return image_matrix, info_df
     
     
@@ -71,7 +85,7 @@ def land_distance(lon, lat, m_map, maptxt):
 
     return dis
 
-def coastline():
+def coastline_ori():
     df = pd.read_csv('./coastline.csv')
     for i in range(len(df)):
         if df.m_lon[i] < 0:
@@ -80,6 +94,17 @@ def coastline():
             df = df.append(df.loc[df.index[i]], ignore_index=True)
             df.m_lon[len(df)-1] = df.m_lon[len(df)-1] + 360.     
     return df
+
+
+def coastline():
+    df = pd.read_csv('./coastline.csv') # read
+    df_copy = df.copy() # copy
+    # correct
+    df_copy.loc[df_copy['m_lon'] < 0, 'm_lon'] += 360
+    df_copy.loc[df_copy['m_lon'] <= 10, 'm_lon'] += 360
+    df_concatenated = pd.concat([df, df_copy[df_copy['m_lon'] <= 10]], ignore_index=True) # merge
+    return df_concatenated
+
 
 def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
 
@@ -91,7 +116,19 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
         """Returns an int64_list from a bool / enum / int / uint."""
         return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-    def _encode_tfexample(single_TC_images, single_TC_info, m_map, maptxt):            
+    def _encode_tfexample(single_TC_images, single_TC_info, m_map, maptxt):
+        '''
+        Generate tf.train.Example Object (standard format for training example)
+        :param single_TC_images:
+        :param single_TC_info:
+        :param m_map:
+        :param maptxt:
+        :return:
+        '''
+        # debug
+        # print("single_TC_info 结构：")
+        # print(single_TC_info)
+
         history_len = single_TC_info.shape[0]
         frame_ID = single_TC_info.ID + '_' + single_TC_info.time
         
@@ -120,38 +157,39 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
         local_time_sin = single_TC_info.hour_sin.to_numpy(dtype='float')
         local_time_cos = single_TC_info.hour_cos.to_numpy(dtype='float')
         
-        D200 = single_TC_info.D200.to_numpy(dtype='float')
+        D200 = single_TC_info.SHIPS_D200.to_numpy(dtype='float')
         Vmax = single_TC_info.Vmax.to_numpy(dtype='float')
-        POTraw = single_TC_info.POT.to_numpy(dtype='float')
-        RHLO = single_TC_info.RHLO.to_numpy(dtype='float')
+        # POTraw = single_TC_info.POT.to_numpy(dtype='float')
+        RHLO = single_TC_info.SHIPS_RHLO.to_numpy(dtype='float')
         SHRD = single_TC_info.SHRD.to_numpy(dtype='float')
         SHTD = single_TC_info.SHTS.to_numpy(dtype='float')
         if region_string[0] == 'SH':
             SHTD = (540. - SHTD) % 360.
-        POT = []
-        SHR_x = []
-        SHR_y = []
-        for i in range(len(region_string)):
-            POTtmp = Vmax[i] - POTraw[i]
-            POTtmp = 170. if POTtmp > 170. else POTtmp
-            if POTtmp < 0.:
-                if i ==0:
-                    POTtmp2 =  Vmax[i+2] - POTraw[i+2]
-                    POTtmp1 =  Vmax[i+1] - POTraw[i+1]
-                    POTtmp = 2*POTtmp1 - POTtmp2
-                elif i == len(region_string)-1:
-                    POTtmp2 =  Vmax[i-2] - POTraw[i-2]
-                    POTtmp1 =  Vmax[i-1] - POTraw[i-1]
-                    POTtmp = 2*POTtmp1 - POTtmp2
-                else:                
-                    POTtmp = (Vmax[i-1] - POTraw[i-1] + Vmax[i+1] - POTraw[i+1])/2
-            POT.append(POTtmp)
-            SHR_x.append(SHRD[i]*math.cos(math.radians(SHTD[i])))
-            SHR_y.append(SHRD[i]*math.sin(math.radians(SHTD[i])))
+        # POT = []
+        # SHR_x = []
+        # SHR_y = []
+        # for i in range(len(region_string)):
+        #     POTtmp = Vmax[i] - POTraw[i]
+        #     POTtmp = 170. if POTtmp > 170. else POTtmp
+        #     if POTtmp < 0.:
+        #         if i ==0:
+        #             POTtmp2 =  Vmax[i+2] - POTraw[i+2]
+        #             POTtmp1 =  Vmax[i+1] - POTraw[i+1]
+        #             POTtmp = 2*POTtmp1 - POTtmp2
+        #         elif i == len(region_string)-1:
+        #             POTtmp2 =  Vmax[i-2] - POTraw[i-2]
+        #             POTtmp1 =  Vmax[i-1] - POTraw[i-1]
+        #             POTtmp = 2*POTtmp1 - POTtmp2
+        #         else:
+        #             POTtmp = (Vmax[i-1] - POTraw[i-1] + Vmax[i+1] - POTraw[i+1])/2
+        #     POT.append(POTtmp)
+        #     SHR_x.append(SHRD[i]*math.cos(math.radians(SHTD[i])))
+        #     SHR_y.append(SHRD[i]*math.sin(math.radians(SHTD[i])))
 
         SHRG = single_TC_info.SHRG.to_numpy(dtype='float')
         RSST = single_TC_info.RSST.to_numpy(dtype='float')
-        env_feature = [land_dis, region, local_time_sin, local_time_cos, D200, POT, RHLO, SHRD, SHR_x, SHR_y, SHRG, RSST]
+        # env_feature = [land_dis, region, local_time_sin, local_time_cos, D200, POT, RHLO, SHRD, SHR_x, SHR_y, SHRG, RSST]
+        env_feature = [land_dis, region, local_time_sin, local_time_cos, D200, RHLO, SHRD, SHRG, RSST]
         env_feature = np.array(env_feature)
                            
         features = {
@@ -175,7 +213,12 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
 
 
 def generate_tfrecord(data_folder):
-    file_path = Path(data_folder, 'TCSA.h5')
+    '''
+    Read data from file directly.
+    :param data_folder:
+    :return:
+    '''
+    file_path = Path(data_folder, 'debug.h5')
     if not file_path.exists():
         print(f'file {file_path} not found! try to download it!')
         download_data(data_folder)
@@ -193,6 +236,13 @@ def generate_tfrecord(data_folder):
     del image_matrix, info_df
     
     maptxt = coastline()
+    '''
+        Provided is a part of the Basemap toolkit in Matplotlib, which is used for creating geographic maps.
+        - projection='cyl': 'cyl' represents the cylindrical equidistant projection.     地图投影
+        - resolution='i': 'i' stands for intermediate resolution.                        边界数据集的分辨率
+        - area_thresh = 5000: Specifies the threshold (in square kilometers) for not plotting coastlines, 
+                                rivers, or political boundaries for small areas.
+    '''
     m_map = Basemap(projection='cyl', resolution='i', area_thresh = 5000.)
     
     for phase, (image_matrix, info_df) in phase_data.items():

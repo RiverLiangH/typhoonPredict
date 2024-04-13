@@ -81,6 +81,15 @@ def deserialize(serialized_TC_history):
 
 
 def translation(starting_lon, starting_lat, ending_lon, ending_lat, estimate_distance):
+    '''
+    Calculate the moving speed of typhoon.
+    :param starting_lon:
+    :param starting_lat:
+    :param ending_lon:
+    :param ending_lat:
+    :param estimate_distance:
+    :return:
+    '''
     west = 360. * tf.cast((ending_lon < 0), tf.float32)
     ending_lon = tf.cast((ending_lon), tf.float32) + west
 
@@ -95,7 +104,6 @@ def translation(starting_lon, starting_lat, ending_lon, ending_lat, estimate_dis
     
     speed = 110*tf.sqrt(tf.square(lon_dif) + tf.square(lat_dif))/(estimate_distance*3)    # in  km/hr
     return speed
-
 
 def breakdown_into_sequence(
     images, intensity, lon, lat, env_feature, history_len, frame_ID_ascii, encode_length, estimate_distance
@@ -120,36 +128,49 @@ def breakdown_into_sequence(
         lambda start: images[start: start+encode_length],
         starting_index, fn_output_signature=tf.float32
     )
-    
+
+    path_data = tf.stack([lon, lat], axis=-1)
+    path_sequences = tf.map_fn(
+        lambda start: path_data[start: start + encode_length],
+        starting_index,
+        fn_output_signature=tf.float32
+    )
+
     starting_frame_ID_ascii = frame_ID_ascii[encode_length + 1:-estimate_distance]
 
+    # intensity_change
     previous_6hr_intensity = intensity[encode_length - 1: -estimate_distance -2]
     starting_intensity = intensity[encode_length + 1: -estimate_distance]
     ending_intensity = intensity[encode_length + estimate_distance + 1:]
-    
-    labels = ending_intensity
-    intensity_change = ending_intensity-starting_intensity
-    
+    intensity_change = ending_intensity - starting_intensity
 
-    starting_lon = lon[encode_length + 1:-estimate_distance]
+    starting_lon = lon[encode_length + 1: -estimate_distance]
     ending_lon = lon[encode_length + estimate_distance + 1:]
-    starting_lat = lat[encode_length + 1:-estimate_distance]    
+    lon_change = ending_lon - starting_lon
+
+    starting_lat = lat[encode_length + 1: -estimate_distance]
     ending_lat = lat[encode_length + estimate_distance + 1:]
+    lat_change = ending_lat - starting_lat
+
+    labels = tf.concat([ending_intensity, ending_lat, ending_lon], axis=-1)
+
+    # starting_lon = lon[encode_length + 1: -estimate_distance]
+    # ending_lon = lon[encode_length + estimate_distance + 1:]
+    # starting_lat = lat[encode_length + 1: -estimate_distance]
+    # ending_lat = lat[encode_length + estimate_distance + 1:]
    
-    translation_speed  = translation(starting_lon, starting_lat, ending_lon, ending_lat, estimate_distance)
+    translation_speed = translation(starting_lon, starting_lat, ending_lon, ending_lat, estimate_distance)
 
     starting_lat = tf.math.abs(starting_lat)
     ending_lat = tf.math.abs(ending_lat)  
     
     starting_env_feature = env_feature[:, encode_length + 1:-estimate_distance]
-    ending_env_feature = env_feature[:, encode_length + estimate_distance + 1:]  
-    
+    ending_env_feature = env_feature[:, encode_length + estimate_distance + 1:]
     
     feature = tf.concat([[starting_lat], [ending_lat], [translation_speed], [starting_intensity], [previous_6hr_intensity], starting_env_feature, ending_env_feature], 0)
     feature = tf.transpose(feature)
 
-    return tf.data.Dataset.from_tensor_slices((image_sequences, labels, feature, starting_frame_ID_ascii, intensity_change))
-
+    return tf.data.Dataset.from_tensor_slices((image_sequences, path_sequences, labels, feature, starting_frame_ID_ascii, intensity_change, lon_change, lat_change))
 
 
 def image_preprocessing(images, intensity, lon, lat, env_feature, history_len, frame_ID_ascii, SHTD, rotate_type, input_image_type):
@@ -213,6 +234,7 @@ def get_tensorflow_datasets(
     :return:
     '''
     tfrecord_paths = get_or_generate_tfrecord(data_folder)
+    print("data_folder", data_folder)
     datasets = dict()
     for phase, record_path in tfrecord_paths.items():
         '''
@@ -223,12 +245,12 @@ def get_tensorflow_datasets(
         '''
         serialized_TC_histories = tf.data.TFRecordDataset(
             [record_path], num_parallel_reads=8
-        )
+        ) # load data from TFRecord files path (record_path)
         TC_histories = serialized_TC_histories.map(
             deserialize, num_parallel_calls=tf.data.AUTOTUNE
         ) # for each ele ['train','valid','test'] in serialized_TC_histories (map) call deserialize to process.
 
-        min_history_len = encode_length + estimate_distance+2  #+2 for extra 6hr information
+        min_history_len = encode_length + estimate_distance + 2  # +2 for extra 6hr information
         long_enough_histories = TC_histories.filter(
             lambda a, b, c, d, e, f, g, h: f >= min_history_len
         ) # filter

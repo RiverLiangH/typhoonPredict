@@ -23,20 +23,61 @@ def train(
       Operating one training step, calculate and update loss value.
 
     '''
+
+    # intensity-prediction
     @tf.function
     def train_step(model, image_sequences, labels, feature, dV):
-        with tf.GradientTape() as tape: # Creates a context manager GradientTape used for computing gradients.
-            model_output = model(image_sequences, feature, training=True) # iterate training.
-        
-            sample_weight = tf.math.tanh((dV-20)/10)*1000 +1000.1            
-            sample_weight = tf.expand_dims(sample_weight, axis = 1)
-            batch_loss = loss_function(labels, model_output, sample_weight=sample_weight)           
+        with tf.GradientTape() as tape:  # Creates a context manager GradientTape used for computing gradients.
+            model_output = model(image_sequences, feature, training=True)  # iterate training.
+
+            sample_weight = tf.math.tanh((dV - 20) / 10) * 1000 + 1000.1
+            sample_weight = tf.expand_dims(sample_weight, axis=1)
+            batch_loss = loss_function(labels, model_output, sample_weight=sample_weight)
 
         gradients = tape.gradient(batch_loss, model.trainable_variables)
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
         avg_losses['mean square error'].update_state(batch_loss)
         return
+
+    # path-prediction
+    @tf.function
+    def train_step_path(model, image_sequences, labels, feature, dV):
+        with tf.GradientTape() as tape:  # Creates a context manager GradientTape used for computing gradients.
+            model_output = model(image_sequences, feature, training=True)  # iterate training.
+
+            sample_weight = tf.math.tanh((dV - 20) / 10) * 1000 + 1000.1
+            sample_weight = tf.expand_dims(sample_weight, axis=1)
+            batch_loss = loss_function(labels, model_output, sample_weight=sample_weight)
+
+        gradients = tape.gradient(batch_loss, model.trainable_variables)
+        optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+
+        avg_losses['mean square error'].update_state(batch_loss)
+        return
+
+    # path&intensity prediction
+    @tf.function
+    def train_step_merge(model, image_sequences, path_sequences, labels, feature, dInt, dLon, dLat):
+        with tf.GradientTape() as tape:  # Creates a context manager GradientTape used for computing gradients.
+            model_output = model(image_sequences, feature, training=True)  # iterate training.
+
+            sample_weight = tf.math.tanh((dInt - 20) / 10) * 1000 + 1000.1
+            sample_weight = tf.expand_dims(sample_weight, axis=1)
+            batch_loss = loss_function(labels, model_output, sample_weight=sample_weight)
+
+        gradients = tape.gradient(batch_loss, model.trainable_variables)
+        optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+
+        avg_losses['mean square error'].update_state(batch_loss)
+        return
+
+    # debug
+    for image_sequences, path_sequences, labels, feature, frame_ID_ascii, dInt, dLon, dLat in datasets['train']:
+        output = model(image_sequences, path_sequences, feature, training=False)
+        print("Output shape:", output.shape)
+        print("Output values:", output.numpy())
+
 
     best_MAE = np.inf
     best_MSE = np.inf

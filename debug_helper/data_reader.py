@@ -1,8 +1,10 @@
 '''
     Print the data structure of TCSA.h5
 '''
+from io import StringIO
 
 import h5py
+import pandas as pd
 import os
 import numpy as np
 
@@ -46,14 +48,31 @@ def print_dataset_info_to_txt(dataset, txt_file, indent):
     for i in range(min(24, dataset.shape[0])):
         txt_file.write(" " * (indent + 4) + str(dataset[i]) + "\n")
 
-if __name__ == "__main__":
-    h5_file_path = "TCSA_data/TCSA.h5"
-    output_file_path = "info_block2.txt"
-    write_block2_values_to_txt(h5_file_path, output_file_path)
+def read_info_and_top_10_to_file(file_path, output_file):
+    # 读取 HDF 文件
+    info_df = pd.read_hdf(file_path, key='info', mode='r')
 
+    # 获取数据结构信息
+    info_output = StringIO()
+    info_df.info(buf=info_output)
+    info_str = info_output.getvalue()
+
+    # 提取前10条数据
+    top_10 = info_df.head(200)
+
+    # 将数据结构信息和前10条数据写入到文本文件
+    with open(output_file, 'w') as f:
+        f.write("Data Structure Information:\n")
+        f.write(info_str)
+        f.write("\n\nTop 200 Data:\n")
+        f.write(top_10.to_string())
+
+if __name__ == "__main__":
+    h5_file_path = "TCSA_data/debug.h5"
+    output_file_path = "pd_info_debug.txt"
+    # write_block2_values_to_txt(h5_file_path, output_file_path)
+
+    read_info_and_top_10_to_file(h5_file_path, output_file_path)
     # print("Structure of", h5_file_path)
     # print_h5_structure_to_txt(h5_file_path, output_file_path)
     # print("Data has been written to", output_file_path)
-
-
-
