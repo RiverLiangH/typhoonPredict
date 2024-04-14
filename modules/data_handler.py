@@ -39,20 +39,21 @@ def deserialize(serialized_TC_history):
 
     images = tf.reshape(
         tf.io.decode_raw(example['images'], tf.float32),
-        [history_len, 64, 64, 4]
+        [history_len, 128, 128, 4]
     )
+
     intensity = tf.reshape(
         tf.io.decode_raw(example['intensity'], tf.float64),
         [history_len]
     )
     intensity = tf.cast(intensity, tf.float32)
-    
+
     lon = tf.reshape(
         tf.io.decode_raw(example['lon'], tf.float64),
         [history_len]
     )    
     lon = tf.cast(lon, tf.float32)
-    
+
     lat = tf.reshape(
         tf.io.decode_raw(example['lat'], tf.float64),
         [history_len]
@@ -64,7 +65,7 @@ def deserialize(serialized_TC_history):
         [-1 ,history_len]
     )    
     env_feature = tf.cast(env_feature, tf.float32)
-    
+
     SHTD = tf.reshape(
         tf.io.decode_raw(example['SHTD'], tf.float64),
         [history_len]
@@ -75,6 +76,7 @@ def deserialize(serialized_TC_history):
         tf.io.decode_raw(example['frame_ID'], tf.uint8),
         [history_len, -1]
     )
+    # print("Shape after reshaping frame_ID:", frame_ID_ascii.shape)
 
     return images, intensity, lon, lat, env_feature, history_len, frame_ID_ascii, SHTD
 
@@ -152,7 +154,8 @@ def breakdown_into_sequence(
     ending_lat = lat[encode_length + estimate_distance + 1:]
     lat_change = ending_lat - starting_lat
 
-    labels = tf.concat([ending_intensity, ending_lat, ending_lon], axis=-1)
+    # labels = tf.concat([ending_intensity, ending_lat, ending_lon], axis=-1)
+    labels = ending_intensity
 
     # starting_lon = lon[encode_length + 1: -estimate_distance]
     # ending_lon = lon[encode_length + estimate_distance + 1:]
@@ -246,6 +249,7 @@ def get_tensorflow_datasets(
         serialized_TC_histories = tf.data.TFRecordDataset(
             [record_path], num_parallel_reads=8
         ) # load data from TFRecord files path (record_path)
+
         TC_histories = serialized_TC_histories.map(
             deserialize, num_parallel_calls=tf.data.AUTOTUNE
         ) # for each ele ['train','valid','test'] in serialized_TC_histories (map) call deserialize to process.

@@ -68,11 +68,11 @@ def read_info_and_top_10_to_file(file_path, output_file):
         f.write(top_10.to_string())
 
 if __name__ == "__main__":
-    h5_file_path = "TCSA_data/debug.h5"
-    output_file_path = "pd_info_debug.txt"
+    h5_file_path = "../TCSA_data/debug.h5"
+    output_file_path = "origin_debug.txt"
     # write_block2_values_to_txt(h5_file_path, output_file_path)
 
-    read_info_and_top_10_to_file(h5_file_path, output_file_path)
+    # read_info_and_top_10_to_file(h5_file_path, output_file_path)
     # print("Structure of", h5_file_path)
-    # print_h5_structure_to_txt(h5_file_path, output_file_path)
+    print_h5_structure_to_txt(h5_file_path, output_file_path)
     # print("Data has been written to", output_file_path)

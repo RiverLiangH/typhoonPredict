@@ -223,7 +223,7 @@ def generate_tfrecord(data_folder):
         print(f'file {file_path} not found! try to download it!')
         download_data(data_folder)
     with h5py.File(file_path, 'r') as hf:
-        print("文件中的对象列表:", list(hf.keys()))
+        print("Object list of H5:", list(hf.keys()))
         image_matrix = hf['images'][:]
     # collect info from every file in the list
     info_df = pd.read_hdf(file_path, key='info', mode='r')

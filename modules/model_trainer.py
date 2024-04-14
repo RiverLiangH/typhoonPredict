@@ -21,7 +21,6 @@ def train(
 
     '''
       Operating one training step, calculate and update loss value.
-
     '''
 
     # intensity-prediction
