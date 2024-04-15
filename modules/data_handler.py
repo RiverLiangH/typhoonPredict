@@ -131,7 +131,7 @@ def breakdown_into_sequence(
         starting_index, fn_output_signature=tf.float32
     )
 
-    path_data = tf.stack([lon, lat], axis=-1)
+    path_data = tf.stack([lat, lon], axis=-1)
     path_sequences = tf.map_fn(
         lambda start: path_data[start: start + encode_length],
         starting_index,
@@ -154,8 +154,8 @@ def breakdown_into_sequence(
     ending_lat = lat[encode_length + estimate_distance + 1:]
     lat_change = ending_lat - starting_lat
 
-    # labels = tf.concat([ending_intensity, ending_lat, ending_lon], axis=-1)
-    labels = ending_intensity
+    labels = tf.concat([ending_intensity, ending_lat, ending_lon], axis=-1)
+    # labels = ending_intensity
 
     # starting_lon = lon[encode_length + 1: -estimate_distance]
     # ending_lon = lon[encode_length + estimate_distance + 1:]
