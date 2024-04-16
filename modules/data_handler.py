@@ -155,7 +155,8 @@ def breakdown_into_sequence(
     lat_change = ending_lat - starting_lat
 
     # labels = tf.concat([ending_intensity, ending_lat, ending_lon], axis=-1)
-    labels = ending_intensity
+    # labels = ending_intensity
+    labels = tf.stack([ending_intensity, ending_lat, ending_lon], axis=-1)
 
     # starting_lon = lon[encode_length + 1: -estimate_distance]
     # ending_lon = lon[encode_length + estimate_distance + 1:]

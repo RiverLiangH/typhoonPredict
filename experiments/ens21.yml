@@ -1,6 +1,6 @@
-experiment_name: 'ens00'
+experiment_name: 'ens21'
 
-model: ConvLSTM_CCA_Meg
+model: ConvLSTM_CCA_Pro
 
 data:
   data_folder: 'TCSA_data'
