@@ -63,7 +63,7 @@ def data_split_by_ratio(image_matrix, info_df, phase, train_ratio=0.7, valid_rat
         target_index = info_df.index[train_size + valid_size:]
 
     new_image_matrix = image_matrix[target_index]
-    new_info_df = info_df.loc[target_index]
+    new_info_df = info_df.loc[target_index].reset_index(drop=True)
 
     return new_image_matrix, new_info_df
 
@@ -247,7 +247,7 @@ def generate_tfrecord(data_folder):
     image_matrix, info_df = data_cleaning_and_organizing(image_matrix, info_df)
 
     phase_data = {
-        phase: data_split(image_matrix, info_df, phase)
+        phase: data_split_by_ratio(image_matrix, info_df, phase)
         for phase in ['train', 'valid', 'test']
     }
     del image_matrix, info_df

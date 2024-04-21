@@ -87,10 +87,10 @@ def train(
         return
 
     # debug
-    for image_sequences, path_sequences, labels, feature, frame_ID_ascii, dInt, dLon, dLat in datasets['train']:
-        output = model(image_sequences, path_sequences, feature, training=False)
-        print("Output shape:", output.shape)
-        print("Output values:", output.numpy())
+    # for image_sequences, path_sequences, labels, feature, frame_ID_ascii, dInt, dLon, dLat in datasets['train']:
+    #     output = model(image_sequences, path_sequences, feature, training=False)
+    #     print("Output shape:", output.shape)
+    #     print("Output values:", output.numpy())
 
 
     best_MAE = np.inf

@@ -1,5 +1,6 @@
 import tensorflow as tf
 import time
+import os
 from modules.tfrecord_generator import *
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
@@ -11,6 +12,10 @@ def calculate_metric_dict(model, dataset):
 
     def draw_path(pred, true, save_path=None):
         print("PAINTING PATH IMAGE")
+        point_size = 5
+        fig_size = (8, 6)
+
+        plt.figure(figsize=fig_size)
         m = Basemap(projection='cyl', resolution='i', area_thresh=5000.)
 
         # draw coastline
@@ -20,16 +25,19 @@ def calculate_metric_dict(model, dataset):
 
         # draw predict line
         x_pred, y_pred = m(pred[:, 1], pred[:, 2]) # lon, lat
-        m.scatter(x_pred, y_pred, marker='o', color='blue', label='Predicted Path')
+        m.scatter(x_pred, y_pred, s=point_size, marker='o', color='blue', label='_nolegend_')
 
         # draw ground truth
         x_true, y_true = m(true[:, 1], true[:, 2]) # lon, lat
-        m.scatter(x_true, y_true, marker='o', color='red', label='True Path')
+        m.scatter(x_true, y_true, s=point_size, marker='o', color='red', label='_nolegend_')
 
         plt.legend()
         plt.title('Comparison between Predicted and True Paths')
 
         if save_path:
+            save_folder = os.path.dirname(save_path)
+            if not os.path.exists(save_folder):
+                os.makedirs(save_folder)
             plt.savefig(save_path)
         else:
             plt.show()
@@ -53,22 +61,22 @@ def calculate_metric_dict(model, dataset):
         for i in range(n):
             for j in range(m):
                 if method == "mse":
-                    Dis[i, j] = weighted_mse(pred[i], truth[j])
+                    Dis = tf.tensor_scatter_nd_update(Dis, [[i, j]], [weighted_mse(pred[i], truth[j])])
                 elif method == "mae":
-                    Dis[i, j] = weighted_mae(pred[i], truth[j])
+                    Dis = tf.tensor_scatter_nd_update(Dis, [[i, j]], [weighted_mae(pred[i], truth[j])])
 
         for i in range(n):
             for j in range(m):
                 if i == 0 and j == 0:
-                    Acc[i, j] = Dis[i, j]
+                    Acc = tf.tensor_scatter_nd_update(Acc, [[i, j]], [Dis[i, j]])
                 elif i == 0 and j > 0:
-                    Acc[i, j] = Acc[i, j - 1] + Dis[i, j]
+                    Acc = tf.tensor_scatter_nd_update(Acc, [[i, j]], [Acc[i, j - 1] + Dis[i, j]])
                 elif i > 0 and j == 0:
-                    Acc[i, j] = Acc[i - 1, j] + Dis[i, j]
+                    Acc = tf.tensor_scatter_nd_update(Acc, [[i, j]], [Acc[i - 1, j] + Dis[i, j]])
                 else:
-                    Acc[i, j] = min(Acc[i - 1, j - 1], Acc[i - 1, j], Acc[i, j - 1]) + Dis[i, j]
+                    Acc = tf.tensor_scatter_nd_update(Acc, [[i, j]], [min(Acc[i - 1, j - 1], Acc[i - 1, j], Acc[i, j - 1]) + Dis[i, j]])
 
-        d = tf.sqrt(Acc)
+        d = tf.sqrt(Acc[-1, -1])
         p = 1.005
         # Normalization
         numerator = p ** d - p ** (-d)
@@ -88,7 +96,7 @@ def calculate_metric_dict(model, dataset):
         # mse_each = tf.math.reduce_mean((tf.abs(labels[:, 0]-pred[:, 0])**2)*sample_weight)
         # path compare
         timestamp = int(time.time())
-        save_path = f"../debug_helper/path_compare/path_comparison_map_{timestamp}.png"
+        save_path = f"debug_helper/path_compare/path_comparison_map_{timestamp}.png"
         draw_path(pred, labels, save_path)
         
         num+=1
