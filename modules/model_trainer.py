@@ -99,7 +99,7 @@ def train(
         print(f'Executing epoch #{epoch_index}')
 
         for image_sequences, path_sequences, labels, feature, frame_ID_ascii, dInt, dLon, dLat in datasets['train']:
-            train_step_merge(image_sequences, path_sequences, labels, feature, frame_ID_ascii, dInt, dLon, dLat)
+            train_step_merge(model, image_sequences, path_sequences, labels, feature,  dInt, dLon, dLat)
 
         # for image_sequences, labels, feature, frame_ID_ascii, dV  in datasets['train']:
         #     train_step(model, image_sequences, labels, feature, dV)
@@ -118,11 +118,11 @@ def train(
                     for metric_name, metric_value in metric_dict.items():
                         tf.summary.scalar(metric_name, metric_value, step=epoch_index)
 
-            # valid_MAE = metric_dict['MAE']
-            # valid_MSE = metric_dict['MSE']
-            # if best_MAE > valid_MAE:
-            #     best_MAE = valid_MAE
-            #     model.save_weights(saving_path/'best-MAE', save_format='tf')
-            # if best_MSE > valid_MSE:
-            #     best_MSE = valid_MSE
-            #     model.save_weights(saving_path/'best-MSE', save_format='tf')
+            valid_MAE = metric_dict['MAE']
+            valid_MSE = metric_dict['MSE']
+            if best_MAE > valid_MAE:
+                best_MAE = valid_MAE
+                model.save_weights(saving_path/'best-MAE', save_format='tf')
+            if best_MSE > valid_MSE:
+                best_MSE = valid_MSE
+                model.save_weights(saving_path/'best-MSE', save_format='tf')

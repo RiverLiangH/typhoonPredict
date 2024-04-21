@@ -49,6 +49,23 @@ def data_cleaning_and_organizing(image_matrix, info_df):
 #    image_matrix = flip_SH_images(image_matrix, info_df)
     return image_matrix, info_df
 
+def data_split_by_ratio(image_matrix, info_df, phase, train_ratio=0.7, valid_ratio=0.2, test_ratio=0.1):
+    total_samples = len(info_df)
+    train_size = int(total_samples * train_ratio)
+    valid_size = int(total_samples * valid_ratio)
+    test_size = int(total_samples * test_ratio)
+
+    if phase == 'train':
+        target_index = info_df.index[:train_size]
+    elif phase == 'valid':
+        target_index = info_df.index[train_size:train_size + valid_size]
+    elif phase == 'test':
+        target_index = info_df.index[train_size + valid_size:]
+
+    new_image_matrix = image_matrix[target_index]
+    new_info_df = info_df.loc[target_index]
+
+    return new_image_matrix, new_info_df
 
 def data_split(image_matrix, info_df, phase):
     if phase == 'train':

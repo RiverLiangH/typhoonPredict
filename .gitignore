@@ -3,3 +3,5 @@
 TCSA_data
 saved_models
 logs
+.tmp.driveupload
+.idea
