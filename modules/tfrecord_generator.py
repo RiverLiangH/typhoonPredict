@@ -235,7 +235,7 @@ def generate_tfrecord(data_folder):
     :param data_folder:
     :return:
     '''
-    file_path = Path(data_folder, 'tcsa_10000.h5')
+    file_path = Path(data_folder, 'debug.h5')
     if not file_path.exists():
         print(f'file {file_path} not found! try to download it!')
         download_data(data_folder)

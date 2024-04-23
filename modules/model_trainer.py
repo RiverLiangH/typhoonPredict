@@ -121,8 +121,8 @@ def train(
                     for metric_name, metric_value in metric_dict.items():
                         tf.summary.scalar(metric_name, metric_value, step=epoch_index)
 
-            valid_MAE = metric_dict['MAE']
-            valid_MSE = metric_dict['MSE']
+            valid_MAE = metric_dict['GLOMAE']
+            valid_MSE = metric_dict['GLOMSE']
             if best_MAE > valid_MAE:
                 best_MAE = valid_MAE
                 model.save_weights(saving_path/'best-MAE', save_format='tf')

@@ -6,10 +6,6 @@ from modules.experiment_helper import seed_everything, set_up_tensorflow, \
 from modules.model_constructor import create_model_instance
 from modules.data_handler import get_tensorflow_datasets
 from modules.model_trainer import train
-import pdb
-
-# 设置全局调试器
-pdb.set_trace()
 
 
 def main(experiment_path, GPU_limit):
