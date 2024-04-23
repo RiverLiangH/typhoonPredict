@@ -5,9 +5,11 @@ from modules.tfrecord_generator import *
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 
-def calculate_metric_dict(model, dataset):
+def calculate_metric_dict(model, dataset, draw_path_img = False):
     mae = tf.constant([0.])
     mse = tf.constant([0.])
+    glo_mae = tf.constant([0.])
+    glo_mse = tf.constant([0.])
     num = 0.
 
     def draw_path(pred, true, save_path=None):
@@ -25,11 +27,11 @@ def calculate_metric_dict(model, dataset):
 
         # draw predict line
         x_pred, y_pred = m(pred[:, 1], pred[:, 2]) # lon, lat
-        m.scatter(x_pred, y_pred, s=point_size, marker='o', color='blue', label='_nolegend_')
+        m.plot(x_pred, y_pred, s=point_size, marker='o', color='blue', label='_nolegend_')
 
         # draw ground truth
         x_true, y_true = m(true[:, 1], true[:, 2]) # lon, lat
-        m.scatter(x_true, y_true, s=point_size, marker='o', color='red', label='_nolegend_')
+        m.plot(x_true, y_true, s=point_size, marker='o', color='red', label='_nolegend_')
 
         plt.legend()
         plt.title('Comparison between Predicted and True Paths')
@@ -86,28 +88,36 @@ def calculate_metric_dict(model, dataset):
     for image_sequences, path_sequences, labels, feature, frame_ID_ascii, dInt, dLon, dLat in dataset:
         pred = model(image_sequences, path_sequences, feature, training=False)
         
-        # sample_weight = tf.math.tanh((dInt-20)/10)*1000 +1000.1
+        sample_weight = tf.math.tanh((dInt-20)/10)*1000 +1000.1
         # sample_weight = tf.nn.softmax(tf.math.tanh((dInt - 20) / 10) * 1000 + 1000.1)
 
-        mse_each = calculate_similarity(pred, labels, "mse")
-        mae_each = calculate_similarity(pred, labels, "mae")
+        glo_mse_each = calculate_similarity(pred, labels, "mse")
+        glo_mae_each = calculate_similarity(pred, labels, "mae")
 
-        # mae_each = tf.math.reduce_mean((tf.abs(labels[:, 0]-pred[:, 0]))*sample_weight)
-        # mse_each = tf.math.reduce_mean((tf.abs(labels[:, 0]-pred[:, 0])**2)*sample_weight)
+        mae_each = tf.math.reduce_mean((tf.abs(labels[:, 0]-pred[:, 0]))*sample_weight)
+        mse_each = tf.math.reduce_mean((tf.abs(labels[:, 0]-pred[:, 0])**2)*sample_weight)
+
         # path compare
-        timestamp = int(time.time())
-        save_path = f"debug_helper/path_compare/path_comparison_map_{timestamp}.png"
-        draw_path(pred, labels, save_path)
+        if draw_path_img:
+            timestamp = int(time.time())
+            save_path = f"debug_helper/path_compare/path_comparison_map_{timestamp}.png"
+            draw_path(pred, labels, save_path)
         
         num+=1
         mae = tf.add(mae, mae_each)
         mse = tf.add(mse, mse_each)
+        glo_mae = tf.add(glo_mae, glo_mae_each)
+        glo_mse = tf.add(glo_mse, glo_mse_each)
         
     
     MAE = tf.reduce_mean(tf.math.divide(mae, num))
     MSE = tf.reduce_mean(tf.math.divide(mse, num))
+    GLOMAE = tf.reduce_mean(tf.math.divide(glo_mae, num))
+    GLOMSE = tf.reduce_mean(tf.math.divide(glo_mse, num))
 
     return dict(
         MAE=MAE,
-        MSE=MSE
+        MSE=MSE,
+        GLOMAE=GLOMAE,
+        GLOMSE=GLOMSE
     )
