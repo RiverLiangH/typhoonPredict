@@ -131,12 +131,14 @@ def calculate_metric_dict(model, dataset, draw_path = "None"):
                 else:
                     Acc = tf.tensor_scatter_nd_update(Acc, [[i, j]], [min(Acc[i - 1, j - 1], Acc[i - 1, j], Acc[i, j - 1]) + Dis[i, j]])
 
-        d = tf.sqrt(1 - Acc[-1, -1])
+        d = tf.sqrt(Acc[-1, -1])
         p = 1.005
         # Normalization
         numerator = p ** d - p ** (-d)
         denominator = p ** d + p ** (-d)
-        return numerator / denominator
+        distance = numerator / denominator
+
+        return 1 - distance
 
     for image_sequences, path_sequences, labels, feature, frame_ID_ascii, dInt, dLon, dLat in dataset:
         pred = model(image_sequences, path_sequences, feature, training=False)
