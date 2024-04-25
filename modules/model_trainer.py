@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from collections import defaultdict
-from modules.training_helper import calculate_metric_dict
+from modules.training_helper import calculate_metric_dict, inverse_normalize, decode_frame_ID
 
 
 def train(
@@ -26,13 +26,22 @@ def train(
     def intensity_loss(y_true, y_pred):
         return tf.keras.losses.MeanSquaredError()(y_true[:, 0], y_pred[:, 0])
 
-    # self-defined loss function for path
     def location_loss(y_true, y_pred):
         lat_true, lon_true = y_true[:, 1], y_true[:, 2]
         lat_pred, lon_pred = y_pred[:, 1], y_pred[:, 2]
-        return tf.sqrt(tf.pow(lat_pred - lat_true, 2) + tf.pow(lon_pred - lon_true, 2))
 
-    # self-defined loss function for both intensity and path
+        # Calculate the mean squared error for latitude and longitude
+        lat_loss = tf.keras.losses.MeanSquaredError()(lat_true, lat_pred)
+        lon_loss = tf.keras.losses.MeanSquaredError()(lon_true, lon_pred)
+
+        # Normalize the losses by dividing by the standard deviation or range
+        # Alternatively, you can use other normalization techniques
+        lat_loss_normalized = lat_loss / tf.math.reduce_std(lat_true)
+        lon_loss_normalized = lon_loss / tf.math.reduce_std(lon_true)
+
+        # Combine the normalized losses
+        return lat_loss_normalized + lon_loss_normalized
+
     def total_loss_function(y_true, y_pred):
         intensity_loss_value = intensity_loss(y_true, y_pred)
         location_loss_value = location_loss(y_true, y_pred)
@@ -89,8 +98,13 @@ def train(
     # debug
     # for image_sequences, path_sequences, labels, feature, frame_ID_ascii, dInt, dLon, dLat in datasets['train']:
     #     output = model(image_sequences, path_sequences, feature, training=False)
-    #     print("Output shape:", output.shape)
-    #     print("Output values:", output.numpy())
+    #     print("Labels:", labels)
+    #     # print("frame_ID_ascii:", frame_ID_ascii)
+    #     print("Path Sequences", path_sequences)
+    #     # print("Image Sequences", image_sequences)
+    #     # print("Feature:", feature)
+    #     output = inverse_normalize(output, decode_frame_ID(frame_ID_ascii))
+    #     print("Output values:", output)
 
 
     best_MAE = np.inf
@@ -113,8 +127,8 @@ def train(
             print(f'Completed {epoch_index} epochs, do some evaluation')
 
             for phase in [ 'test', 'valid']:
-                if epoch_index >= 28:
-                    metric_dict = calculate_metric_dict(model, datasets[phase], draw_path_img=True)
+                if epoch_index >= 30:
+                    metric_dict = calculate_metric_dict(model, datasets[phase], draw_path="IMG")
                 else:
                     metric_dict = calculate_metric_dict(model, datasets[phase])
                 with summary_writer[phase].as_default():

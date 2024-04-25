@@ -35,10 +35,16 @@ class Model(tf.keras.Model):
         #     layers.Dense(units=1),
         # ]
 
-        self.output_layers = [
+        self.int_output_layers = [
             layers.Dense(units=128, activation='relu'),
             layers.Dropout(rate=0.2),
-            layers.Dense(units=3),  # 3 for intensity, latitude, and longitude
+            layers.Dense(units=1),  # 3 for intensity, latitude, and longitude
+        ]
+
+        self.pat_output_layers = [
+            layers.Dense(units=128, activation='relu'),
+            layers.Dropout(rate=0.2),
+            layers.Dense(units=2),  # 3 for intensity, latitude, and longitude
         ]
 
     def apply_list_of_layers(self, input, list_of_layers, training):
@@ -89,11 +95,18 @@ class Model(tf.keras.Model):
         flatten_feature = tf.reshape(compressed_features, [batch_size, -1])
 
         #     auxiliary_feature = self.auxiliary_feature(feature)
-        combine_feature = tf.concat([flatten_feature, feature, lstm_output[:, -1, :]], 1)
-        # combine_feature = tf.concat([flatten_feature, feature], 1)
+        # combine_feature = tf.concat([flatten_feature, feature, lstm_output[:, -1, :]], 1)
+        intensity_combine_feature = tf.concat([flatten_feature, feature], 1)
+        path_combine_feature = tf.concat([lstm_output[:, -1, :], feature], 1)
 
         # output block
-        output = self.apply_list_of_layers(
-            combine_feature, self.output_layers, training
+        int_output = self.apply_list_of_layers(
+            intensity_combine_feature, self.int_output_layers, training
         )
+
+        pat_output = self.apply_list_of_layers(
+            path_combine_feature, self.pat_output_layers, training
+        )
+        # pat_output = pat_output[:, 0, :]
+        output = tf.concat([int_output, pat_output], 1)
         return output

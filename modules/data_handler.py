@@ -132,11 +132,13 @@ def breakdown_into_sequence(
     )
 
     path_data = tf.stack([lon, lat], axis=-1)
+    # path_sequences = tf.slice(path_data, [starting_index, 0], [encode_length, -1])
     path_sequences = tf.map_fn(
         lambda start: path_data[start: start + encode_length],
         starting_index,
         fn_output_signature=tf.float32
     )
+    # path_sequences = path_sequences[:, 0, :]
 
     starting_frame_ID_ascii = frame_ID_ascii[encode_length + 1:-estimate_distance]
 

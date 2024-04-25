@@ -1,13 +1,21 @@
+import pickle
+
 import tensorflow as tf
 import h5py
 import pandas as pd
 import numpy as np
 from pathlib import Path
+
+from sklearn.preprocessing import MinMaxScaler
+
 from modules.data_downloader import download_data
 from mpl_toolkits.basemap import Basemap
 import math
 from datetime import timedelta
 pd.options.mode.chained_assignment = None
+
+lon_scaler_dict = {} # save each typhoon scaler object
+lat_scaler_dict = {} # save each typhoon scaler object
 
 def remove_outlier_and_nan(numpy_array, upper_bound=1000):
     '''
@@ -151,6 +159,17 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
         
         lon = single_TC_info.lon.to_numpy()
         lat = single_TC_info.lat.to_numpy()
+        # Normalization
+        lon_scaler = MinMaxScaler()
+        lat_scaler = MinMaxScaler()
+        lon = lon_scaler.fit_transform(lon.reshape(-1, 1)).flatten()
+        lat = lat_scaler.fit_transform(lat.reshape(-1, 1)).flatten()
+
+        intensity = single_TC_info.Vmax.to_numpy()
+        # intensity = scaler.fit_transform(intensity.reshape(-1, 1)).flatten()
+        # print("single_TC_info.ID", single_TC_info.ID.values[0])
+        lon_scaler_dict[single_TC_info.ID.values[0]] = lon_scaler
+        lat_scaler_dict[single_TC_info.ID.values[0]] = lat_scaler
         
         land_dis = np.ones(len(lon))
         for i in range(len(land_dis)):
@@ -212,7 +231,7 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
         features = {
             'history_len': _int64_feature(history_len),
             'images': _bytes_feature(np.ndarray.tobytes(single_TC_images)),
-            'intensity': _bytes_feature(np.ndarray.tobytes(single_TC_info.Vmax.to_numpy())),
+            'intensity': _bytes_feature(np.ndarray.tobytes(intensity)),
             'frame_ID': _bytes_feature(np.ndarray.tobytes(frame_ID.to_numpy('bytes'))),
             'lon': _bytes_feature(np.ndarray.tobytes(lon)),
             'lat': _bytes_feature(np.ndarray.tobytes(lat)),
@@ -228,6 +247,12 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
             serialized = example.SerializeToString()
             writer.write(serialized)
 
+    with open('TCSA_data/lon_scaler_dict.pkl', 'wb') as lon_f:
+        pickle.dump(lon_scaler_dict, lon_f)
+
+    with open('TCSA_data/lat_scaler_dict.pkl', 'wb') as lat_f:
+        pickle.dump(lat_scaler_dict, lat_f)
+
 
 def generate_tfrecord(data_folder):
     '''
@@ -235,7 +260,7 @@ def generate_tfrecord(data_folder):
     :param data_folder:
     :return:
     '''
-    file_path = Path(data_folder, 'debug.h5')
+    file_path = Path(data_folder, 'TCSA.h5')
     if not file_path.exists():
         print(f'file {file_path} not found! try to download it!')
         download_data(data_folder)
