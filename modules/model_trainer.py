@@ -127,10 +127,7 @@ def train(
             print(f'Completed {epoch_index} epochs, do some evaluation')
 
             for phase in [ 'test', 'valid']:
-                if epoch_index >= 30:
-                    metric_dict = calculate_metric_dict(model, datasets[phase], draw_path="IMG")
-                else:
-                    metric_dict = calculate_metric_dict(model, datasets[phase])
+                metric_dict = calculate_metric_dict(model, datasets[phase])
                 with summary_writer[phase].as_default():
                     for metric_name, metric_value in metric_dict.items():
                         tf.summary.scalar(metric_name, metric_value, step=epoch_index)

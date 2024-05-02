@@ -247,10 +247,10 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
             serialized = example.SerializeToString()
             writer.write(serialized)
 
-    with open('TCSA_data/lon_scaler_dict.pkl', 'wb') as lon_f:
+    with open('../drive/MyDrive/typhoonPredict/TCSA_data/lon_scaler_dict.pkl', 'wb') as lon_f:
         pickle.dump(lon_scaler_dict, lon_f)
 
-    with open('TCSA_data/lat_scaler_dict.pkl', 'wb') as lat_f:
+    with open('../drive/MyDrive/typhoonPredict/TCSA_data/lat_scaler_dict.pkl', 'wb') as lat_f:
         pickle.dump(lat_scaler_dict, lat_f)
 
 

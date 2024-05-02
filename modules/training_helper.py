@@ -18,10 +18,10 @@ def decode_frame_ID(frame_ID_ascii):
     return ID_str
 
 def inverse_normalize(prediction, frame_ID):
-    with open('TCSA_data/lon_scaler_dict.pkl', 'rb') as lon_f:
+    with open('../drive/MyDrive/typhoonPredict/TCSA_data/lon_scaler_dict.pkl', 'rb') as lon_f:
         lon_scaler_dict = pickle.load(lon_f)
 
-    with open('TCSA_data/lat_scaler_dict.pkl', 'rb') as lat_f:
+    with open('../drive/MyDrive/typhoonPredict/TCSA_data/lat_scaler_dict.pkl', 'rb') as lat_f:
         lat_scaler_dict = pickle.load(lat_f)
     lon_scaler = lon_scaler_dict[frame_ID]
     lat_scaler = lat_scaler_dict[frame_ID]
