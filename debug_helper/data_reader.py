@@ -99,7 +99,7 @@ def extract_h5_subset(input_file, output_file, num_samples=200):
     except Exception as e:
         print(f"Error processing 'info': {e}")
 
-    print(f"✅ Subset extracted and saved to {output_file}!")
+    # print(f"✅ Subset extracted and saved to {output_file}!")
 
 
 
