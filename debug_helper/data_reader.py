@@ -27,6 +27,13 @@ def write_block2_values_to_txt(h5_file_path, output_file):
                 txt_file.write(row + '\n')
 
 def print_h5_structure_to_txt(file_path, output_file):
+    '''
+    Explore the structure of H5 file.
+    查看 H5 数据集的基本结构
+    :param file_path:
+    :param output_file:
+    :return:
+    '''
     with open(output_file, 'w') as txt_file:
         with h5py.File(file_path, 'r') as f:
             txt_file.write("文件中的对象列表: " + str(list(f.keys())) + "\n")
@@ -49,6 +56,12 @@ def print_dataset_info_to_txt(dataset, txt_file, indent):
         txt_file.write(" " * (indent + 4) + str(dataset[i]) + "\n")
 
 def read_info_and_top_10_to_file(file_path, output_file):
+    '''
+    Get mini-dataset for debugging.
+    :param file_path:
+    :param output_file:
+    :return:
+    '''
     info_df = pd.read_hdf(file_path, key='info', mode='r')
 
     info_output = StringIO()
@@ -62,12 +75,46 @@ def read_info_and_top_10_to_file(file_path, output_file):
         f.write("\n\nTop 200 Data:\n")
         f.write(top_10.to_string())
 
-if __name__ == "__main__":
-    h5_file_path = "../TCSA_data/debug.h5"
-    output_file_path = "debug_files/origin_debug.txt"
-    # write_block2_values_to_txt(h5_file_path, output_file_path)
+def extract_h5_subset(input_file, output_file, num_samples=200):
+    """
+    Extract a subset from the HDF5 file while preserving the original structure.
 
-    read_info_and_top_10_to_file(h5_file_path, output_file_path)
+    :param input_file: Path to the original .h5 file
+    :param output_file: Path to save the extracted dataset
+    :param num_samples: Number of samples to extract (default: 200)
+    """
+    with h5py.File(input_file, 'r') as infile, h5py.File(output_file, 'w') as outfile:
+        # 复制 matrix
+        if 'matrix' in infile:
+            matrix_data = infile['matrix'][:num_samples]
+            outfile.create_dataset('matrix', data=matrix_data)
+        else:
+            print("Warning: 'matrix' dataset not found in input file.")
+
+    # 处理 info：读取 DataFrame -> 取前 num_samples 行 -> 存回 HDF5
+    try:
+        info_df = pd.read_hdf(input_file, key='info', mode='r')
+        info_df_subset = info_df.iloc[:num_samples]  # 取前 num_samples 行
+        info_df_subset.to_hdf(output_file, key='info', mode='a')  # 追加模式存回
+    except Exception as e:
+        print(f"Error processing 'info': {e}")
+
+    print(f"✅ Subset extracted and saved to {output_file}!")
+
+
+
+if __name__ == "__main__":
+    # Extract debugging dataset
+    h5_file_path = "../data/TCIR-CPAC_IO_SH/TCSA.h5"
+    output_file_path = "../data/MINI-TCSA.h5"
+    extract_h5_subset(h5_file_path, output_file_path)
+
+    # Check mini-dataset structure
+    mini_h5_file_path = "../data/MINI-TCSA.h5"
+    structure_txt_path = "../debug_helper/debug_files/mini_info_sample.txt"
+    # print_h5_structure_to_txt(mini_h5_file_path, structure_txt_path)
+    read_info_and_top_10_to_file(mini_h5_file_path, structure_txt_path)
+
     # print("Structure of", h5_file_path)
     # print_h5_structure_to_txt(h5_file_path, output_file_path)
     # print("Data has been written to", output_file_path)

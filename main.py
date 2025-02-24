@@ -57,6 +57,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.CUDA_VISIBLE_DEVICES:
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.CUDA_VISIBLE_DEVICES
+        os.environ['CUDA_VISIBLE_DEVICES'] = args.CUDA_VISIBLE_DEVICESn
 
     main(args.experiment_path, args.GPU_limit)

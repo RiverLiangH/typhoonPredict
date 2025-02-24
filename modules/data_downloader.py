@@ -46,3 +46,5 @@ def download_data(data_folder):
             uncompress_file(data_folder_path, file_name)
 
     return verify_data(data_folder_path)
+
+# download_data("C:\\Users\\13067\\River\\projectWorkPlace\\IN6235-TyphoonPredictior\\typhoonPredict\\data")

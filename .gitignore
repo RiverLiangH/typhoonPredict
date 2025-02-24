@@ -1,6 +1,7 @@
 *.un~
 *.__pycache__
 TCSA_data
+data
 saved_models
 logs
 .tmp.driveupload

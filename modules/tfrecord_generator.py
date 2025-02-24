@@ -1,3 +1,4 @@
+import logging
 import pickle
 
 import tensorflow as tf
@@ -52,7 +53,7 @@ def flip_SH_images(image_matrix, info_df):
 
 
 def data_cleaning_and_organizing(image_matrix, info_df):
-    image_matrix, info_df = remove_no_ships(image_matrix, info_df)    
+    # image_matrix, info_df = remove_no_ships(image_matrix, info_df)
     image_matrix = remove_outlier_and_nan(image_matrix)
 #    image_matrix = flip_SH_images(image_matrix, info_df)
     return image_matrix, info_df
@@ -159,24 +160,24 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
         
         lon = single_TC_info.lon.to_numpy()
         lat = single_TC_info.lat.to_numpy()
-        # Normalization
-        lon_scaler = MinMaxScaler()
-        lat_scaler = MinMaxScaler()
-        lon = lon_scaler.fit_transform(lon.reshape(-1, 1)).flatten()
-        lat = lat_scaler.fit_transform(lat.reshape(-1, 1)).flatten()
-
+        # # Normalization
+        # lon_scaler = MinMaxScaler()
+        # lat_scaler = MinMaxScaler()
+        # lon = lon_scaler.fit_transform(lon.reshape(-1, 1)).flatten()
+        # lat = lat_scaler.fit_transform(lat.reshape(-1, 1)).flatten()
+        #
         intensity = single_TC_info.Vmax.to_numpy()
-        # intensity = scaler.fit_transform(intensity.reshape(-1, 1)).flatten()
-        # print("single_TC_info.ID", single_TC_info.ID.values[0])
-        lon_scaler_dict[single_TC_info.ID.values[0]] = lon_scaler
-        lat_scaler_dict[single_TC_info.ID.values[0]] = lat_scaler
+        # # intensity = scaler.fit_transform(intensity.reshape(-1, 1)).flatten()
+        # # print("single_TC_info.ID", single_TC_info.ID.values[0])
+        # lon_scaler_dict[single_TC_info.ID.values[0]] = lon_scaler
+        # lat_scaler_dict[single_TC_info.ID.values[0]] = lat_scaler
         
         land_dis = np.ones(len(lon))
         for i in range(len(land_dis)):
             land_dis[i] = land_distance(lon[i], lat[i], m_map, maptxt)     
             
-        region_one_hot = {'WP':1., 'EP':2. , 'AL':3., 'SH':4., 'CP':5., 'IO':6.}
-        region_string = list(single_TC_info.region)
+        region_one_hot = {'CPAC':1., 'IO':2. , 'SH':3.}
+        region_string = list(single_TC_info.data_set)
         region = []
         for i in range(len(region_string)):
             region.append(region_one_hot[region_string[i]])
@@ -193,14 +194,14 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
         local_time_sin = single_TC_info.hour_sin.to_numpy(dtype='float')
         local_time_cos = single_TC_info.hour_cos.to_numpy(dtype='float')
         
-        D200 = single_TC_info.SHIPS_D200.to_numpy(dtype='float')
+        # D200 = single_TC_info.SHIPS_D200.to_numpy(dtype='float')
         Vmax = single_TC_info.Vmax.to_numpy(dtype='float')
         # POTraw = single_TC_info.POT.to_numpy(dtype='float')
-        RHLO = single_TC_info.SHIPS_RHLO.to_numpy(dtype='float')
-        SHRD = single_TC_info.SHRD.to_numpy(dtype='float')
-        SHTD = single_TC_info.SHTS.to_numpy(dtype='float')
-        if region_string[0] == 'SH':
-            SHTD = (540. - SHTD) % 360.
+        # RHLO = single_TC_info.SHIPS_RHLO.to_numpy(dtype='float')
+        # SHRD = single_TC_info.SHRD.to_numpy(dtype='float')
+        # SHTD = single_TC_info.SHTS.to_numpy(dtype='float')
+        # if region_string[0] == 'SH':
+        #     SHTD = (540. - SHTD) % 360.
         # POT = []
         # SHR_x = []
         # SHR_y = []
@@ -222,10 +223,10 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
         #     SHR_x.append(SHRD[i]*math.cos(math.radians(SHTD[i])))
         #     SHR_y.append(SHRD[i]*math.sin(math.radians(SHTD[i])))
 
-        SHRG = single_TC_info.SHRG.to_numpy(dtype='float')
-        RSST = single_TC_info.RSST.to_numpy(dtype='float')
+        R35 = single_TC_info.R35_4qAVG.to_numpy(dtype='float')
+        # RSST = single_TC_info.RSST.to_numpy(dtype='float')
         # env_feature = [land_dis, region, local_time_sin, local_time_cos, D200, POT, RHLO, SHRD, SHR_x, SHR_y, SHRG, RSST]
-        env_feature = [land_dis, region, local_time_sin, local_time_cos, D200, RHLO, SHRD, SHRG, RSST]
+        env_feature = [land_dis, region, local_time_sin, local_time_cos, R35]
         env_feature = np.array(env_feature)
                            
         features = {
@@ -236,7 +237,7 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
             'lon': _bytes_feature(np.ndarray.tobytes(lon)),
             'lat': _bytes_feature(np.ndarray.tobytes(lat)),
             'env_feature': _bytes_feature(np.ndarray.tobytes(env_feature)),
-            'SHTD': _bytes_feature(np.ndarray.tobytes(SHTD)),
+            # 'SHTD': _bytes_feature(np.ndarray.tobytes(SHTD)),
         }
         return tf.train.Example(features=tf.train.Features(feature=features))
     
@@ -247,29 +248,23 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
             serialized = example.SerializeToString()
             writer.write(serialized)
 
-    with open('../drive/MyDrive/typhoonPredict/TCSA_data/lon_scaler_dict.pkl', 'wb') as lon_f:
-        pickle.dump(lon_scaler_dict, lon_f)
-
-    with open('../drive/MyDrive/typhoonPredict/TCSA_data/lat_scaler_dict.pkl', 'wb') as lat_f:
-        pickle.dump(lat_scaler_dict, lat_f)
-
-
 def generate_tfrecord(data_folder):
     '''
     Read data from file directly.
     :param data_folder:
     :return:
     '''
-    file_path = Path(data_folder, 'TCSA.h5')
+    file_path = Path(data_folder, 'MINI-TCSA.h5')
     if not file_path.exists():
         print(f'file {file_path} not found! try to download it!')
         download_data(data_folder)
     with h5py.File(file_path, 'r') as hf:
         print("Object list of H5:", list(hf.keys()))
-        image_matrix = hf['images'][:]
-    # collect info from every file in the list
+        image_matrix = hf['matrix'][:]
+
     info_df = pd.read_hdf(file_path, key='info', mode='r')
     image_matrix, info_df = data_cleaning_and_organizing(image_matrix, info_df)
+    print(info_df.head())
 
     phase_data = {
         phase: data_split_by_ratio(image_matrix, info_df, phase)
@@ -291,6 +286,8 @@ def generate_tfrecord(data_folder):
         image_matrix, info_df = group_by_id(image_matrix, info_df)
         phase_path = Path(data_folder, f'TCSA.tfrecord.{phase}')
         write_tfrecord(image_matrix, info_df, phase_path, m_map, maptxt)
+
+    logging.info("Split Done.")
 
 
 def get_or_generate_tfrecord(data_folder):
