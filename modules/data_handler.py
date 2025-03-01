@@ -31,7 +31,7 @@ def deserialize(serialized_TC_history):
         'lon': tf.io.FixedLenFeature([], tf.string),
         'lat': tf.io.FixedLenFeature([], tf.string),
         'env_feature': tf.io.FixedLenFeature([], tf.string),
-        'SHTD': tf.io.FixedLenFeature([], tf.string)
+        # 'SHTD': tf.io.FixedLenFeature([], tf.string)
     }
 
     example = tf.io.parse_single_example(serialized_TC_history, features)
@@ -39,7 +39,7 @@ def deserialize(serialized_TC_history):
 
     images = tf.reshape(
         tf.io.decode_raw(example['images'], tf.float32),
-        [history_len, 128, 128, 4]
+        [history_len, 201, 201, 4]
     )
 
     intensity = tf.reshape(
@@ -66,11 +66,11 @@ def deserialize(serialized_TC_history):
     )    
     env_feature = tf.cast(env_feature, tf.float32)
 
-    SHTD = tf.reshape(
-        tf.io.decode_raw(example['SHTD'], tf.float64),
-        [history_len]
-    )    
-    SHTD = tf.cast(SHTD, tf.float32)
+    # SHTD = tf.reshape(
+    #     tf.io.decode_raw(example['SHTD'], tf.float64),
+    #     [history_len]
+    # )
+    # SHTD = tf.cast(SHTD, tf.float32)
 
     frame_ID_ascii = tf.reshape(
         tf.io.decode_raw(example['frame_ID'], tf.uint8),
@@ -78,7 +78,8 @@ def deserialize(serialized_TC_history):
     )
     # print("Shape after reshaping frame_ID:", frame_ID_ascii.shape)
 
-    return images, intensity, lon, lat, env_feature, history_len, frame_ID_ascii, SHTD
+    # return images, intensity, lon, lat, env_feature, history_len, frame_ID_ascii, SHTD
+    return images, intensity, lon, lat, env_feature, history_len, frame_ID_ascii
 
 
 
@@ -107,11 +108,11 @@ def translation(starting_lon, starting_lat, ending_lon, ending_lat, estimate_dis
     speed = 110*tf.sqrt(tf.square(lon_dif) + tf.square(lat_dif))/(estimate_distance*3)    # in  km/hr
     return speed
 
+
 def breakdown_into_sequence(
-    images, intensity, lon, lat, env_feature, history_len, frame_ID_ascii, encode_length, estimate_distance
+        images, intensity, lon, lat, env_feature, history_len, frame_ID_ascii, encode_length, estimate_distance
 ):
     '''
-
     :param images:
     :param intensity:
     :param lon:
@@ -123,63 +124,46 @@ def breakdown_into_sequence(
     :param estimate_distance: time step of prediction.
     :return:
     '''
+
     sequence_num = history_len - (encode_length + estimate_distance) + 1
-    starting_index = tf.range(2, sequence_num) # tensor: [2, sequence_num-1]
+    starting_index = tf.range(2, sequence_num)
 
     image_sequences = tf.map_fn(
-        lambda start: images[start: start+encode_length],
+        lambda start: images[start: start + encode_length],
         starting_index, fn_output_signature=tf.float32
     )
 
-    path_data = tf.stack([lon, lat], axis=-1)
-    # path_sequences = tf.slice(path_data, [starting_index, 0], [encode_length, -1])
-    path_sequences = tf.map_fn(
-        lambda start: path_data[start: start + encode_length],
-        starting_index,
-        fn_output_signature=tf.float32
-    )
-    # path_sequences = path_sequences[:, 0, :]
-
     starting_frame_ID_ascii = frame_ID_ascii[encode_length + 1:-estimate_distance]
 
-    # intensity_change
-    previous_6hr_intensity = intensity[encode_length - 1: -estimate_distance -2]
+    previous_6hr_intensity = intensity[encode_length - 1: -estimate_distance - 2]
     starting_intensity = intensity[encode_length + 1: -estimate_distance]
     ending_intensity = intensity[encode_length + estimate_distance + 1:]
+
+    labels = ending_intensity
     intensity_change = ending_intensity - starting_intensity
 
-    starting_lon = lon[encode_length + 1: -estimate_distance]
+    starting_lon = lon[encode_length + 1:-estimate_distance]
     ending_lon = lon[encode_length + estimate_distance + 1:]
-    lon_change = ending_lon - starting_lon
-
-    starting_lat = lat[encode_length + 1: -estimate_distance]
+    starting_lat = lat[encode_length + 1:-estimate_distance]
     ending_lat = lat[encode_length + estimate_distance + 1:]
-    lat_change = ending_lat - starting_lat
 
-    # labels = tf.concat([ending_intensity, ending_lat, ending_lon], axis=-1)
-    # labels = ending_intensity
-    labels = tf.stack([ending_intensity, ending_lon, ending_lat], axis=-1)
-
-    # starting_lon = lon[encode_length + 1: -estimate_distance]
-    # ending_lon = lon[encode_length + estimate_distance + 1:]
-    # starting_lat = lat[encode_length + 1: -estimate_distance]
-    # ending_lat = lat[encode_length + estimate_distance + 1:]
-   
     translation_speed = translation(starting_lon, starting_lat, ending_lon, ending_lat, estimate_distance)
 
     starting_lat = tf.math.abs(starting_lat)
-    ending_lat = tf.math.abs(ending_lat)  
-    
+    ending_lat = tf.math.abs(ending_lat)
+
     starting_env_feature = env_feature[:, encode_length + 1:-estimate_distance]
     ending_env_feature = env_feature[:, encode_length + estimate_distance + 1:]
-    
-    feature = tf.concat([[starting_lat], [ending_lat], [translation_speed], [starting_intensity], [previous_6hr_intensity], starting_env_feature, ending_env_feature], 0)
+
+    feature = tf.concat(
+        [[starting_lat], [ending_lat], [translation_speed], [starting_intensity], [previous_6hr_intensity],
+         starting_env_feature, ending_env_feature], 0)
     feature = tf.transpose(feature)
 
-    return tf.data.Dataset.from_tensor_slices((image_sequences, path_sequences, labels, feature, starting_frame_ID_ascii, intensity_change, lon_change, lat_change))
+    return tf.data.Dataset.from_tensor_slices(
+        (image_sequences, labels, feature, starting_frame_ID_ascii, intensity_change))
 
-
-def image_preprocessing(images, intensity, lon, lat, env_feature, history_len, frame_ID_ascii, SHTD, rotate_type, input_image_type):
+def image_preprocessing(images, intensity, lon, lat, env_feature, history_len, frame_ID_ascii, rotate_type, input_image_type):
     '''
     Operating at every typhoon record (in the format of time series).
     func:
@@ -215,7 +199,7 @@ def image_preprocessing(images, intensity, lon, lat, env_feature, history_len, f
         # A single random angle is generated and applied to all images.
     elif rotate_type == 'shear':
         print('this is the shear rotation run')
-        rotated_images = tfa.image.rotate(images_channels, angles=-SHTD*0.01745329252)
+        # rotated_images = tfa.image.rotate(images_channels, angles=-SHTD*0.01745329252)
         # a shear rotation is applied. The images_channels is rotated using the shear angle specified.
     else:
         rotated_images = images_channels # without any rotation.
@@ -259,7 +243,8 @@ def get_tensorflow_datasets(
 
         min_history_len = encode_length + estimate_distance + 2  # +2 for extra 6hr information
         long_enough_histories = TC_histories.filter(
-            lambda a, b, c, d, e, f, g, h: f >= min_history_len
+            # lambda a, b, c, d, e, f, g, h: f >= min_history_len
+            lambda a, b, c, d, e, f, g: f >= min_history_len
         ) # filter
 
         # image pre-process
