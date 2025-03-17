@@ -20,24 +20,6 @@ def main(experiment_path, GPU_limit):
 
     datasets = get_tensorflow_datasets(**experiment_settings['data'])
 
-    # Print single sample in the dataset.
-    # print("Structure of a single sample in 'train' dataset:")
-    # print(datasets['train'].element_spec)
-
-    # # phase sample in dataset['train'] one by one.
-    # for sample in datasets['train']:
-    #     # 解析每个样本中的元素
-    #     image_sequences, path_sequences, labels, feature, frame_ID_ascii, dInt, dLon, dLat = sample
-    #     # 进行您的操作，例如打印每个元素的形状等
-    #     print("Image sequences shape:", image_sequences.shape)
-    #     print("Path sequences shape:", path_sequences.shape)
-    #     print("Labels shape:", labels.shape)
-    #     print("Feature shape:", feature.shape)
-    #     print("Frame ID ASCII shape:", frame_ID_ascii.shape)
-    #     print("dInt shape:", dInt.shape)
-    #     print("dLon shape:", dLon.shape)
-    #     print("dLat shape:", dLat.shape)
-
     model = create_model_instance(experiment_settings['model'])
 
     train(
