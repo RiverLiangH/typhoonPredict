@@ -15,8 +15,7 @@ import math
 from datetime import timedelta
 pd.options.mode.chained_assignment = None
 
-lon_scaler_dict = {} # save each typhoon scaler object
-lat_scaler_dict = {} # save each typhoon scaler object
+vmax_scaler_dict = {} # save each typhoon scaler object
 
 def remove_outlier_and_nan(numpy_array, upper_bound=1000):
     '''
@@ -167,10 +166,10 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
         # lat = lat_scaler.fit_transform(lat.reshape(-1, 1)).flatten()
         #
         intensity = single_TC_info.Vmax.to_numpy()
-        # # intensity = scaler.fit_transform(intensity.reshape(-1, 1)).flatten()
-        # # print("single_TC_info.ID", single_TC_info.ID.values[0])
-        # lon_scaler_dict[single_TC_info.ID.values[0]] = lon_scaler
-        # lat_scaler_dict[single_TC_info.ID.values[0]] = lat_scaler
+        # Normalization
+        vmax_scaler = MinMaxScaler()
+        intensity = vmax_scaler.fit_transform(intensity.reshape(-1, 1)).flatten()
+        vmax_scaler_dict[single_TC_info.ID.values[0]] = vmax_scaler
         
         land_dis = np.ones(len(lon))
         for i in range(len(land_dis)):
@@ -248,13 +247,20 @@ def write_tfrecord(image_matrix, info_df, tfrecord_path, m_map, maptxt):
             serialized = example.SerializeToString()
             writer.write(serialized)
 
+    # with open('../drive/MyDrive/typhoonPredict/TCSA_data/vmax_scaler_dict.pkl', 'wb') as f:
+    #     pickle.dump(vmax_scaler_dict, f)
+
+    with open('vmax_scaler_dict.pkl', 'wb') as f:
+        pickle.dump(vmax_scaler_dict, f)
+
+
 def generate_tfrecord(data_folder):
     '''
     Read data from file directly.
     :param data_folder:
     :return:
     '''
-    file_path = Path(data_folder, 'MINI-TCSA.h5')
+    file_path = Path(data_folder, 'TCSA.h5')
     if not file_path.exists():
         print(f'file {file_path} not found! try to download it!')
         download_data(data_folder)
@@ -264,7 +270,7 @@ def generate_tfrecord(data_folder):
 
     info_df = pd.read_hdf(file_path, key='info', mode='r')
     image_matrix, info_df = data_cleaning_and_organizing(image_matrix, info_df)
-    print(info_df.head())
+    # print(info_df.head())
 
     phase_data = {
         phase: data_split_by_ratio(image_matrix, info_df, phase)

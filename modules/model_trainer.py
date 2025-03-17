@@ -112,11 +112,8 @@ def train(
     for epoch_index in range(1, max_epoch+1): # max_epoch: max training iteration.
         print(f'Executing epoch #{epoch_index}')
 
-        for image_sequences, labels, feature, frame_ID_ascii, dInt in datasets['train']:
-            train_step(model, image_sequences, labels, feature,  dInt)
-
-        # for image_sequences, labels, feature, frame_ID_ascii, dV  in datasets['train']:
-        #     train_step(model, image_sequences, labels, feature, dV)
+        for image_sequences, labels, feature, frame_ID_ascii, dV in datasets['train']:
+            train_step(model, image_sequences, labels, feature,  dV)
 
         with summary_writer['train'].as_default():
             for loss_name, avg_loss in avg_losses.items():
